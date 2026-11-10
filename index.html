@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vanta-9 // High-Tech Weapon</title>
+  <style>
+    :root { --cyan: #53f4ff; --blue: #5488ff; --amber: #ffc857; --red: #ff5470; --ink: #071015; --panel: rgba(7, 16, 21, .82); }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; overflow: hidden; background: #03080c; color: #d9f7fa; font: 12px/1.4 "Arial Narrow", Arial, sans-serif; letter-spacing: .08em; }
+    body { position: relative; }
+    #scene { position: fixed; inset: 0; }
+    canvas { display: block; }
+    .scanlines { pointer-events: none; position: fixed; inset: 0; opacity: .09; background: repeating-linear-gradient(0deg, transparent 0 3px, #9ffcff 4px, transparent 5px); mix-blend-mode: screen; }
+    .hud { position: fixed; inset: 0; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 24px 28px; }
+    .topbar, .bottom { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+    .eyebrow { color: var(--cyan); font-size: 10px; letter-spacing: .25em; }
+    h1 { margin: 4px 0 0; font-size: clamp(22px, 3.5vw, 44px); font-weight: 400; letter-spacing: .16em; text-shadow: 0 0 20px rgba(83,244,255,.35); }
+    .status { display: flex; gap: 10px; align-items: center; color: #9ac0c5; font-size: 10px; }
+    .status i { display: block; width: 7px; height: 7px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 14px var(--cyan); }
+    .panel { pointer-events: auto; border: 1px solid rgba(83,244,255,.32); background: linear-gradient(135deg, rgba(11,28,34,.88), rgba(4,11,16,.74)); box-shadow: 0 0 30px rgba(0,0,0,.25), inset 0 0 24px rgba(83,244,255,.035); backdrop-filter: blur(8px); }
+    .telemetry { width: min(300px, 42vw); padding: 16px; }
+    .telemetry-head { display: flex; justify-content: space-between; margin-bottom: 14px; color: var(--cyan); }
+    .readout { display: flex; justify-content: space-between; padding: 8px 0; border-top: 1px solid rgba(160,220,225,.12); color: #77979d; }
+    .readout b { color: #e5fcff; font-weight: 400; }
+    .bar { height: 3px; margin-top: 6px; background: #11272d; overflow: hidden; }
+    .bar span { display: block; height: 100%; width: 86%; background: var(--cyan); box-shadow: 0 0 10px var(--cyan); transition: width .3s; }
+    .crosshair { position: fixed; left: 50%; top: 50%; width: 54px; height: 54px; transform: translate(-50%, -50%); border: 1px solid rgba(83,244,255,.38); border-radius: 50%; }
+    .crosshair:before, .crosshair:after { content: ""; position: absolute; background: var(--cyan); box-shadow: 0 0 9px var(--cyan); }
+    .crosshair:before { left: 50%; top: -9px; width: 1px; height: 72px; transform: translateX(-50%); opacity: .6; }
+    .crosshair:after { top: 50%; left: -9px; width: 72px; height: 1px; transform: translateY(-50%); opacity: .6; }
+    .skills { width: min(620px, 100%); padding: 14px; }
+    .skills-title { display: flex; justify-content: space-between; color: var(--cyan); margin-bottom: 10px; }
+    .skills-title span:last-child { color: #69868d; }
+    .skill-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    button { appearance: none; color: #d9f7fa; font: inherit; letter-spacing: .09em; text-align: left; border: 1px solid rgba(83,244,255,.3); background: rgba(9, 25, 31, .9); padding: 12px; cursor: pointer; transition: .2s ease; }
+    button:hover, button:focus-visible { border-color: var(--cyan); background: rgba(15,45,53,.96); box-shadow: 0 0 18px rgba(83,244,255,.18); outline: none; }
+    button:disabled { opacity: .46; cursor: not-allowed; }
+    .skill-key { color: var(--cyan); font-size: 16px; }
+    .skill-name { display: block; margin: 5px 0 3px; color: #efffff; font-size: 11px; }
+    .skill-info { display: block; color: #78989d; font-size: 9px; letter-spacing: .05em; }
+    .cooldown { display: block; height: 2px; margin-top: 10px; background: #1b3035; }
+    .cooldown span { display: block; height: 100%; width: 0; background: var(--cyan); transition: width .1s linear; }
+    .hint { align-self: flex-end; color: #719098; font-size: 10px; text-align: right; }
+    .hint strong { color: #d4f9fa; font-weight: 400; }
+    #flash { position: fixed; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(circle at 50% 50%, rgba(83,244,255,.35), transparent 28%); transition: opacity .08s; }
+    @media (max-width: 700px) { .hud { padding: 16px; } .telemetry { width: 190px; padding: 10px; } .readout { padding: 5px 0; } .skill-grid { grid-template-columns: 1fr; } .skills { width: min(250px, 70vw); } .hint { display: none; } }
+  </style>
+</head>
+<body>
+  <div id="scene"></div><div class="scanlines"></div><div id="flash"></div><div class="crosshair"></div>
+  <main class="hud">
+    <div class="topbar">
+      <div><div class="eyebrow">VANTA SYSTEMS // FIELD PLATFORM</div><h1>VANTA-9</h1><div class="status"><i></i>WEAPON ONLINE <span>/</span> MK. IV PROTOTYPE</div></div>
+      <section class="panel telemetry"><div class="telemetry-head"><span>LIVE TELEMETRY</span><span id="telemetryState">STABLE</span></div><div class="readout"><span>CORE OUTPUT</span><b id="output">86%</b></div><div class="bar"><span id="outputBar"></span></div><div class="readout"><span>THERMAL LOAD</span><b id="thermal">12%</b></div><div class="bar"><span id="thermalBar" style="width:12%; background:var(--amber); box-shadow:0 0 10px var(--amber)"></span></div><div class="readout"><span>AMMO CELL</span><b>∞ / PLASMA</b></div></section>
+    </div>
+    <div class="bottom">
+      <section class="panel skills"><div class="skills-title"><span>COMBAT SKILLS</span><span>SELECT / ACTIVATE</span></div><div class="skill-grid">
+        <button data-skill="pulse"><span class="skill-key">01</span><span class="skill-name">PULSE SHOT</span><span class="skill-info">Focused plasma discharge</span><span class="cooldown"><span></span></span></button>
+        <button data-skill="phase"><span class="skill-key">02</span><span class="skill-name">PHASE DASH</span><span class="skill-info">Vector displacement burst</span><span class="cooldown"><span></span></span></button>
+        <button data-skill="overdrive"><span class="skill-key">03</span><span class="skill-name">OVERDRIVE</span><span class="skill-info">Overclock all systems</span><span class="cooldown"><span></span></span></button>
+      </div></section>
+      <div class="hint"><strong>DRAG</strong> TO INSPECT &nbsp; <strong>CLICK</strong> TO FIRE &nbsp; <strong>1 2 3</strong> SKILLS</div>
+    </div>
+  </main>
+  <script type="module">
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js';
+    import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/controls/OrbitControls.js';
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x03080c);
+    scene.fog = new THREE.FogExp2(0x03080c, .045);
+    const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, .1, 100);
+    camera.position.set(5.8, 2.7, 7.2);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.setSize(innerWidth, innerHeight); renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.shadowMap.enabled = true;
+    document.querySelector('#scene').appendChild(renderer.domElement);
+    const controls = new OrbitControls(camera, renderer.domElement); controls.target.set(0, .1, 0); controls.enableDamping = true; controls.minDistance = 4; controls.maxDistance = 11; controls.enablePan = false;
+    scene.add(new THREE.HemisphereLight(0x9deaff, 0x05070b, 1.8));
+    const cyan = new THREE.MeshStandardMaterial({ color: 0x123a43, metalness: .86, roughness: .22, emissive: 0x062a31, emissiveIntensity: .7 });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x080e13, metalness: .95, roughness: .18 });
+    const trim = new THREE.MeshStandardMaterial({ color: 0x2d4149, metalness: .8, roughness: .25 });
+    const glow = new THREE.MeshBasicMaterial({ color: 0x53f4ff, transparent: true, opacity: .95 });
+    const amber = new THREE.MeshBasicMaterial({ color: 0xffc857, transparent: true, opacity: .9 });
+    const gun = new THREE.Group(); gun.rotation.y = -.32; scene.add(gun);
+    function add(mesh, parent = gun) { mesh.castShadow = true; mesh.receiveShadow = true; parent.add(mesh); return mesh; }
+    function box(size, mat, pos, rot = [0,0,0]) { const m = add(new THREE.Mesh(new THREE.BoxGeometry(...size), mat)); m.position.set(...pos); m.rotation.set(...rot); return m; }
+    function cyl(radius, depth, mat, pos, rot = [0,0,0], segments = 32) { const m = add(new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, depth, segments), mat)); m.position.set(...pos); m.rotation.set(...rot); return m; }
+    box([3.8, .92, 1.18], dark, [0, .45, 0]); box([2.7, .5, 1.3], cyan, [.25, .98, 0]); box([3.5, .18, 1.4], trim, [-.1, .99, 0]);
+    box([1.25, .7, .82], dark, [-.95, -.35, 0], [0, 0, -.17]); box([.9, 1.05, .75], dark, [-1.48, -.82, 0], [0, 0, -.15]);
+    box([1.2, .18, 1.35], cyan, [.95, 1.1, 0]); box([.75, .14, .7], glow, [.96, 1.2, 0]);
+    box([.14, .9, 1.8], trim, [-.15, .62, .72], [0, .14, 0]); box([.14, .9, 1.8], trim, [-.15, .62, -.72], [0, -.14, 0]);
+    box([.48, .2, 1.9], glow, [1.42, .66, 0]);
+    cyl(.33, 1.8, dark, [2.7, .47, 0], [0,0,Math.PI/2]); cyl(.2, 1.87, glow, [2.72, .47, 0], [0,0,Math.PI/2]);
+    cyl(.43, .08, trim, [3.58, .47, 0], [0,0,Math.PI/2]); cyl(.3, .1, glow, [3.64, .47, 0], [0,0,Math.PI/2]);
+    for (let i=0;i<3;i++) { const ring = cyl(.46 + i*.035, .035, i===1 ? amber : glow, [2.03 + i*.25, .47, 0], [0,0,Math.PI/2]); ring.userData.spin = i * .7; }
+    const core = new THREE.Mesh(new THREE.SphereGeometry(.34, 24, 16), glow); core.position.set(.35, .72, 0); gun.add(core);
+    const coreRing = new THREE.Mesh(new THREE.TorusGeometry(.52, .025, 8, 32), glow); coreRing.rotation.y = Math.PI/2; coreRing.position.copy(core.position); gun.add(coreRing);
+    box([.8, .07, .07], glow, [-1.25, .47, .61]); box([.8, .07, .07], glow, [-1.25, .47, -.61]);
+    const muzzle = new THREE.Group(); muzzle.position.set(3.7, .47, 0); gun.add(muzzle);
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(.08, .08, 4.2, 12), glow); beam.rotation.z = Math.PI/2; beam.position.x = 2.1; beam.visible = false; muzzle.add(beam);
+    const particles = new THREE.Group(); scene.add(particles);
+    const particleMat = new THREE.MeshBasicMaterial({ color: 0x53f4ff });
+    for (let i=0;i<80;i++) { const p = new THREE.Mesh(new THREE.BoxGeometry(.012,.012,.012), particleMat); p.position.set((Math.random()-.5)*14, (Math.random()-.5)*6, (Math.random()-.5)*5); p.userData.base = p.position.y; p.userData.speed = .2 + Math.random()*.8; particles.add(p); }
+    const grid = new THREE.GridHelper(30, 30, 0x12373d, 0x0a1b21); grid.position.y = -1.38; grid.material.transparent = true; grid.material.opacity = .42; scene.add(grid);
+    const keyCooldown = { pulse: 0, phase: 0, overdrive: 0 }; const cooldownMax = { pulse: 1.1, phase: 4, overdrive: 8 }; let thermal = 12, output = 86, overdriveUntil = 0;
+    const flash = document.querySelector('#flash'); const state = document.querySelector('#telemetryState');
+    function activate(skill) { if (keyCooldown[skill] > 0) return; keyCooldown[skill] = cooldownMax[skill]; if (skill === 'pulse') fire(); if (skill === 'phase') { gun.position.x = -.7; setTimeout(() => gun.position.x = 0, 180); thermal = Math.min(100, thermal + 8); } if (skill === 'overdrive') { overdriveUntil = performance.now() + 5000; thermal = Math.min(100, thermal + 20); state.textContent = 'OVERCLOCK'; state.style.color = '#ffc857'; } }
+    function fire() { beam.visible = true; flash.style.opacity = '1'; thermal = Math.min(100, thermal + 5); output = Math.min(100, output + 3); setTimeout(() => { beam.visible = false; flash.style.opacity = '0'; }, 100); }
+    document.querySelectorAll('button').forEach((button) => button.addEventListener('click', () => activate(button.dataset.skill)));
+    addEventListener('keydown', (e) => { if (e.key === '1') activate('pulse'); if (e.key === '2') activate('phase'); if (e.key === '3') activate('overdrive'); });
+    renderer.domElement.addEventListener('click', fire);
+    const clock = new THREE.Clock();
+    function animate(now = performance.now()) { requestAnimationFrame(animate); const t = clock.getElapsedTime(); controls.update(); core.scale.setScalar(1 + Math.sin(t*5)*.08); coreRing.rotation.z = t*1.6; gun.position.y = Math.sin(t*1.2)*.045; gun.rotation.z = Math.sin(t*.8)*.018; particles.children.forEach(p => { p.position.y = p.userData.base + Math.sin(t*p.userData.speed)*.08; });
+      thermal = Math.max(8, thermal - .025); output = Math.max(72, output - .01); if (overdriveUntil && now > overdriveUntil) { overdriveUntil = 0; state.textContent = 'STABLE'; state.style.color = ''; }
+      document.querySelector('#thermal').textContent = Math.round(thermal) + '%'; document.querySelector('#thermalBar').style.width = thermal + '%'; document.querySelector('#output').textContent = Math.round(output) + '%'; document.querySelector('#outputBar').style.width = output + '%';
+      document.querySelectorAll('button').forEach((button) => { const skill = button.dataset.skill; keyCooldown[skill] = Math.max(0, keyCooldown[skill] - .016); button.disabled = keyCooldown[skill] > 0; button.querySelector('.cooldown span').style.width = (keyCooldown[skill] / cooldownMax[skill] * 100) + '%'; }); renderer.render(scene, camera); }
+    addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); }); animate();
+  </script>
+</body>
+</html>
